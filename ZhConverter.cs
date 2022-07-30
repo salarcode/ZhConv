@@ -19,10 +19,10 @@ namespace Localization.Converter
         private static readonly Dictionary<To, ZhConverter> Converters = new Dictionary<To, ZhConverter>();
 
         private static readonly Dictionary<To, string> PropertyFiles = new Dictionary<To, string>
-            {
-                {To.Traditional, "zh2Hant.properties"},
-                {To.Simplified, "zh2Hans.properties"},
-            };
+        {
+            {To.Traditional, "ZhConv.zh2Hant.properties"},
+            {To.Simplified, "ZhConv.zh2Hans.properties"},
+        };
 
 
         private static readonly Regex UnicodeRegex = new Regex(@"\\u([0-9A-Za-z][0-9A-Za-z][0-9A-Za-z][0-9A-Za-z])",
@@ -33,19 +33,28 @@ namespace Localization.Converter
 
         private ZhConverter(string propertyFile)
         {
-            foreach (var line in File.ReadAllLines(propertyFile))
-            {
-                if (!line.Contains('='))
-                    continue;
+            var assembly = typeof(ZhConverter).Assembly;
 
-                var parts = line.Split('=');
-                var key = EscapedUnicodeToString(parts[0]);
-                var value = EscapedUnicodeToString(parts[1]);
-                if (_charMap.ContainsKey(key))
-                    _charMap.Remove(key);
-                _charMap.Add(key, value);
+            using var stream = assembly.GetManifestResourceStream(propertyFile);
+            if (stream != null)
+            {
+                using var reader = new StreamReader(stream);
+                while (!reader.EndOfStream)
+                {
+                    var line = reader.ReadLine();
+
+                    if (line == null || !line.Contains('='))
+                        continue;
+
+                    var parts = line.Split('=');
+                    var key = EscapedUnicodeToString(parts[0]);
+                    var value = EscapedUnicodeToString(parts[1]);
+                    if (_charMap.ContainsKey(key))
+                        _charMap.Remove(key);
+                    _charMap.Add(key, value);
+                }
+                InitializeHelper();
             }
-            InitializeHelper();
         }
 
         private static string EscapedUnicodeToString(string escaped)
@@ -53,7 +62,7 @@ namespace Localization.Converter
             return new string(
                 UnicodeRegex.Matches(escaped)
                             .OfType<Match>()
-                            .Select(e => (char) int.Parse(e.Groups[1].Value, NumberStyles.HexNumber))
+                            .Select(e => (char)int.Parse(e.Groups[1].Value, NumberStyles.HexNumber))
                             .ToArray()
                 );
         }
